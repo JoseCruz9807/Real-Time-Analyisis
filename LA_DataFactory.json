@@ -1,0 +1,218 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "actions": {
+            "Crear_una_ejecución_de_canalización": {
+                "inputs": {
+                    "body": {
+                        "dayColumn": "@{variables('diaSemana')}"
+                    },
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['azuredatafactory']['connectionId']"
+                        }
+                    },
+                    "method": "post",
+                    "path": "/subscriptions/@{encodeURIComponent('8b8959ee-bc8c-4480-9126-4e7f2e1d0b20')}/resourcegroups/@{encodeURIComponent('RG_AYCDD_General')}/providers/Microsoft.DataFactory/factories/@{encodeURIComponent('dfaycdd')}/pipelines/@{encodeURIComponent('PipelineReferenciasSA')}/CreateRun",
+                    "queries": {
+                        "x-ms-api-version": "2017-09-01-preview"
+                    }
+                },
+                "runAfter": {
+                    "Inicializar_variable": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ApiConnection"
+            },
+            "Hasta": {
+                "actions": {
+                    "Obtener_una_ejecución_de_canalización_2": {
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "name": "@parameters('$connections')['azuredatafactory']['connectionId']"
+                                }
+                            },
+                            "method": "get",
+                            "path": "/subscriptions/@{encodeURIComponent('8b8959ee-bc8c-4480-9126-4e7f2e1d0b20')}/resourcegroups/@{encodeURIComponent('RG_AYCDD_General')}/providers/Microsoft.DataFactory/factories/@{encodeURIComponent('dfaycdd')}/pipelineRuns/@{encodeURIComponent(body('Crear_una_ejecución_de_canalización')?['runId'])}",
+                            "queries": {
+                                "x-ms-api-version": "2017-09-01-preview"
+                            }
+                        },
+                        "runAfter": {
+                            "Retraso": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "ApiConnection"
+                    },
+                    "Retraso": {
+                        "inputs": {
+                            "interval": {
+                                "count": 30,
+                                "unit": "Second"
+                            }
+                        },
+                        "runAfter": {},
+                        "type": "Wait"
+                    }
+                },
+                "expression": "@equals(body('Obtener_una_ejecución_de_canalización_2')?['status'], 'Succeeded')",
+                "limit": {
+                    "count": 60,
+                    "timeout": "PT1H"
+                },
+                "runAfter": {
+                    "Obtener_una_ejecución_de_canalización": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Until"
+            },
+            "Inicializar_variable": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "diaSemana",
+                            "type": "string",
+                            "value": "@{parameters('columnasDias')[dayOfWeek(utcNow())]}"
+                        }
+                    ]
+                },
+                "runAfter": {},
+                "type": "InitializeVariable"
+            },
+            "Obtener_una_ejecución_de_canalización": {
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['azuredatafactory']['connectionId']"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/subscriptions/@{encodeURIComponent('8b8959ee-bc8c-4480-9126-4e7f2e1d0b20')}/resourcegroups/@{encodeURIComponent('RG_AYCDD_General')}/providers/Microsoft.DataFactory/factories/@{encodeURIComponent('dfaycdd')}/pipelineRuns/@{encodeURIComponent(body('Crear_una_ejecución_de_canalización')?['runId'])}",
+                    "queries": {
+                        "x-ms-api-version": "2017-09-01-preview"
+                    }
+                },
+                "runAfter": {
+                    "Crear_una_ejecución_de_canalización": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ApiConnection"
+            },
+            "Ámbito": {
+                "actions": {
+                    "Enviar_correo_electrónico_(V2)_3": {
+                        "inputs": {
+                            "body": {
+                                "Body": "<p>Pipeline ejecutada correctamente</p>",
+                                "Subject": "Pipeline",
+                                "To": "t-jojuarez@itesm.mx"
+                            },
+                            "host": {
+                                "connection": {
+                                    "name": "@parameters('$connections')['office365']['connectionId']"
+                                }
+                            },
+                            "method": "post",
+                            "path": "/v2/Mail"
+                        },
+                        "runAfter": {},
+                        "type": "ApiConnection"
+                    }
+                },
+                "runAfter": {
+                    "Hasta": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Scope"
+            },
+            "Ámbito_2": {
+                "actions": {
+                    "Enviar_correo_electrónico_(V2)_2": {
+                        "inputs": {
+                            "body": {
+                                "Body": "<p>La pipeline no se pudo terminar de ejecutar.</p>",
+                                "Subject": "Pipeline",
+                                "To": "t-jojuarez@itesm.mx"
+                            },
+                            "host": {
+                                "connection": {
+                                    "name": "@parameters('$connections')['office365']['connectionId']"
+                                }
+                            },
+                            "method": "post",
+                            "path": "/v2/Mail"
+                        },
+                        "runAfter": {},
+                        "type": "ApiConnection"
+                    }
+                },
+                "runAfter": {
+                    "Hasta": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Scope"
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "parameters": {
+            "$connections": {
+                "defaultValue": {},
+                "type": "Object"
+            },
+            "columnasDias": {
+                "defaultValue": [
+                    "indhorariodomingo",
+                    "indhorariolunes",
+                    "indhorariomartes",
+                    "indhorariomiercoles",
+                    "indhorariojueves",
+                    "indhorarioviernes",
+                    "indhorariosabado"
+                ],
+                "type": "Array"
+            }
+        },
+        "triggers": {
+            "Recurrence": {
+                "recurrence": {
+                    "frequency": "Day",
+                    "interval": 1,
+                    "schedule": {
+                        "hours": [
+                            "5"
+                        ],
+                        "minutes": [
+                            0
+                        ]
+                    },
+                    "timeZone": "Central Standard Time (Mexico)"
+                },
+                "type": "Recurrence"
+            }
+        }
+    },
+    "parameters": {
+        "$connections": {
+            "value": {
+                "azuredatafactory": {
+                    "connectionId": "/subscriptions/8b8959ee-bc8c-4480-9126-4e7f2e1d0b20/resourceGroups/RG_AYCDD_General/providers/Microsoft.Web/connections/azuredatafactory",
+                    "connectionName": "azuredatafactory",
+                    "id": "/subscriptions/8b8959ee-bc8c-4480-9126-4e7f2e1d0b20/providers/Microsoft.Web/locations/eastus/managedApis/azuredatafactory"
+                },
+                "office365": {
+                    "connectionId": "/subscriptions/8b8959ee-bc8c-4480-9126-4e7f2e1d0b20/resourceGroups/RG_AYCDD_General/providers/Microsoft.Web/connections/office365",
+                    "connectionName": "office365",
+                    "id": "/subscriptions/8b8959ee-bc8c-4480-9126-4e7f2e1d0b20/providers/Microsoft.Web/locations/eastus/managedApis/office365"
+                }
+            }
+        }
+    }
+}
